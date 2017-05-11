@@ -11,30 +11,28 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package zipkin.autoconfigure.storage.cassandra3.brave;
+package zipkin.autoconfigure.storage.cassandra.brave;
 
-import com.github.kristofa.brave.Brave;
+import brave.Tracing;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
-import zipkin.storage.cassandra3.Cassandra3Storage.SessionFactory;
+import zipkin.storage.cassandra.SessionFactory;
 
 /** Sets up the Cassandra tracing in Brave as an initialization. */
-@ConditionalOnBean(Brave.class)
-@ConditionalOnProperty(name = "zipkin.storage.type", havingValue = "cassandra3")
+@ConditionalOnBean(Tracing.class)
+@ConditionalOnProperty(name = "zipkin.storage.type", havingValue = "cassandra")
 @Configuration
-// This component is named .*Cassandra3.* even though the package already says cassandra3 because
-// Spring Boot configuration endpoints only printout the simple name of the class
-public class TraceZipkinCassandra3StorageAutoConfiguration {
-  final SessionFactory delegate = SessionFactory.DEFAULT;
+public class TracingZipkinCassandraStorageAutoConfiguration {
+  final SessionFactory delegate = new SessionFactory.Default();
 
   // Lazy to unwind a circular dep: we are tracing the storage used by brave
-  @Autowired @Lazy Brave brave;
+  @Autowired @Lazy Tracing tracing;
 
   @Bean SessionFactory tracingSessionFactory() {
-    return storage -> TracedSession.create(delegate.create(storage), brave);
+    return storage -> new TracingSession(tracing, delegate.create(storage));
   }
 }

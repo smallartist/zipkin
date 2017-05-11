@@ -45,7 +45,8 @@
 
     <main.basedir>${project.basedir}</main.basedir>
 
-    <brave.version>4.1.1</brave.version>
+    <brave.version>4.3.1</brave.version>
+    <zipkin-reporter.version>0.9.0</zipkin-reporter.version>
     <cassandra-driver-core.version>3.2.0</cassandra-driver-core.version>
     <okio.version>1.13.0</okio.version>
     <!-- important to keep this with spring-boot -->
@@ -354,17 +355,6 @@
       <dependency>
         <groupId>io.zipkin.brave</groupId>
         <artifactId>brave</artifactId>
-        <version>${brave.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>zipkin</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>io.zipkin.brave</groupId>
-        <artifactId>brave-core</artifactId>
         <version>${brave.version}</version>
         <exclusions>
           <exclusion>

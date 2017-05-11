@@ -13,13 +13,16 @@
  */
 package zipkin.autoconfigure.storage.elasticsearch.http.brave;
 
-import com.github.kristofa.brave.Brave;
-import com.github.kristofa.brave.BraveExecutorService;
-import com.github.kristofa.brave.okhttp.BraveTracingInterceptor;
+import brave.Tracer;
+import brave.Tracing;
+import brave.http.HttpTracing;
+import brave.okhttp3.TracingInterceptor;
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
 import okhttp3.Dispatcher;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
 import okhttp3.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -31,41 +34,37 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 
 /** Sets up the Elasticsearch tracing in Brave as an initialization. */
-@ConditionalOnBean(Brave.class)
+@ConditionalOnBean(Tracing.class)
 @ConditionalOnProperty(name = "zipkin.storage.type", havingValue = "elasticsearch")
 @Configuration
-public class TraceZipkinElasticsearchHttpStorageAutoConfiguration {
+public class TracingZipkinElasticsearchHttpStorageAutoConfiguration {
   // Lazy to unwind a circular dep: we are tracing the storage used by brave
-  @Autowired @Lazy Brave brave;
+  @Autowired @Lazy HttpTracing httpTracing;
 
   @Bean
   @Qualifier("zipkinElasticsearchHttp")
   @ConditionalOnMissingBean
   OkHttpClient.Builder elasticsearchOkHttpClientBuilder() {
-    // have to indirect to unwind a circular dependency
-    Interceptor tracingInterceptor = new Interceptor() {
-      Interceptor delegate = BraveTracingInterceptor.builder(brave)
-          .serverName("elasticsearch").build();
-
-      @Override public Response intercept(Chain chain) throws IOException {
-        // Only join traces, don't start them. This prevents LocalCollector's thread from amplifying.
-        if (brave.serverSpanThreadBinder().getCurrentServerSpan() != null &&
-            brave.serverSpanThreadBinder().getCurrentServerSpan().getSpan() != null) {
-          return delegate.intercept(chain);
-        }
-        return chain.proceed(chain.request());
-      }
-    };
-
-    BraveExecutorService tracePropagatingExecutor = BraveExecutorService.wrap(
-        new Dispatcher().executorService(),
-        brave
+    ExecutorService tracingExecutor = httpTracing.tracing().currentTraceContext().executorService(
+        new Dispatcher().executorService()
     );
 
     OkHttpClient.Builder builder = new OkHttpClient.Builder();
-    builder.addInterceptor(tracingInterceptor);
-    builder.addNetworkInterceptor(tracingInterceptor);
-    builder.dispatcher(new Dispatcher(tracePropagatingExecutor));
+    builder.addInterceptor(new Interceptor() {
+      /** create a local span with the same name as the request tag */
+      @Override public Response intercept(Chain chain) throws IOException {
+        Tracer tracer = httpTracing.tracing().tracer();
+        Request request = chain.request();
+        brave.Span span = tracer.nextSpan().name(request.tag().toString());
+        try (Tracer.SpanInScope ws = tracer.withSpanInScope(span.start())) {
+          return chain.proceed(request);
+        } finally {
+          span.finish();
+        }
+      }
+    });
+    builder.addNetworkInterceptor(TracingInterceptor.create(httpTracing.clientOf("elasticsearch")));
+    builder.dispatcher(new Dispatcher(tracingExecutor));
     return builder;
   }
 }

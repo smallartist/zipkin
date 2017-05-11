@@ -19,7 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.context.ConfigurableWebApplicationContext;
-import zipkin.server.brave.TracedStorageComponent;
+import zipkin.server.brave.TracingStorageComponent;
 import zipkin.storage.StorageComponent;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +38,6 @@ public class ZipkinServerSelfTracingTest {
   @Test
   public void selfTraceStorageComponent() throws Exception {
     assertThat(context.getBean(StorageComponent.class))
-        .isInstanceOf(TracedStorageComponent.class);
+        .isInstanceOf(TracingStorageComponent.class);
   }
 }

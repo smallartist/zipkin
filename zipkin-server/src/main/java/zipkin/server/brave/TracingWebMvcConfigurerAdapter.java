@@ -13,8 +13,8 @@
  */
 package zipkin.server.brave;
 
-import com.github.kristofa.brave.Brave;
-import com.github.kristofa.brave.spring.ServletHandlerInterceptor;
+import brave.http.HttpTracing;
+import brave.spring.webmvc.TracingHandlerInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -23,13 +23,12 @@ import zipkin.server.ConditionalOnSelfTracing;
 
 @ConditionalOnSelfTracing
 @Configuration
-public class ApiTracerConfiguration extends WebMvcConfigurerAdapter {
+public class TracingWebMvcConfigurerAdapter extends WebMvcConfigurerAdapter {
 
-  @Autowired
-  Brave brave;
+  @Autowired HttpTracing httpTracing;
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
-    registry.addInterceptor(ServletHandlerInterceptor.create(brave));
+    registry.addInterceptor(TracingHandlerInterceptor.create(httpTracing));
   }
 }

@@ -13,7 +13,8 @@
  */
 package zipkin.server;
 
-import com.github.kristofa.brave.Brave;
+import brave.Tracing;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -26,11 +27,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import zipkin.collector.CollectorMetrics;
 import zipkin.collector.CollectorSampler;
-import zipkin.server.brave.TracedStorageComponent;
+import zipkin.server.brave.TracingStorageComponent;
 import zipkin.storage.InMemoryStorage;
 import zipkin.storage.StorageComponent;
-
-import java.util.Optional;
 
 @Configuration
 public class ZipkinServerConfiguration {
@@ -60,10 +59,10 @@ public class ZipkinServerConfiguration {
 
   @Configuration
   @ConditionalOnSelfTracing
-  static class BraveTracedStorageComponentEnhancer implements BeanPostProcessor {
+  static class TracingStorageComponentEnhancer implements BeanPostProcessor {
 
     @Autowired(required = false)
-    Brave brave;
+    Tracing tracing;
 
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) {
@@ -72,8 +71,8 @@ public class ZipkinServerConfiguration {
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) {
-      if (bean instanceof StorageComponent && brave != null) {
-        return new TracedStorageComponent(brave, (StorageComponent) bean);
+      if (bean instanceof StorageComponent && tracing != null) {
+        return new TracingStorageComponent(tracing, (StorageComponent) bean);
       }
       return bean;
     }
